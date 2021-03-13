@@ -17,6 +17,11 @@
       apt:
         name: smartmontools
         state: present
+    - name: Install python requirements
+      apt:
+        name:
+          - python3-sh
+        state: present
 
 - name: Prime trusted pool 1/2
   hosts: secondnode
