@@ -1,0 +1,38 @@
+---
+
+- name: Install gluster server
+  hosts: all
+  become: True
+  tasks:
+    - name: Install glusterfs-server
+      apt:
+        name: glusterfs-server
+        state: present
+    - name: Enable gluster service
+      systemd:
+        name: glusterd
+        state: started
+        enabled: True
+    - name: Install smartmontools
+      apt:
+        name: smartmontools
+        state: present
+
+- name: Prime trusted pool 1/2
+  hosts: secondnode
+  become: True
+  tasks:
+    - name: Probe first node
+      gluster_peer:
+        state: present
+        nodes:
+          - "{{groups['firstnode'][0]}}"
+
+- name: Prime trusted pool 2/2
+  hosts: firstnode
+  become: True
+  tasks:
+    - name: Probe other nodes
+      gluster_peer:
+        state: present
+        nodes: "{{groups['all']}}"
