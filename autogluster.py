@@ -73,15 +73,5 @@ for drive in drives:
     brick_path = path.join(mount, brick_path).replace(":", "\:")
     glusterfs = path.join(brick_path, ".glusterfs")
 
-    print(glusterfs)
-    # Remove possible previous gluster information
-    if path.exists(glusterfs):
-        sh.rm("-rf", glusterfs)
-    try:
-        sh.setfattr("-x", "trusted.glusterfs.volume-id", brick_path)
-        sh.setfattr("-x", "trusted.gfid", brick_path)
-    except Exception:
-        pass
-
     print(f"Adding {brick_path} to {gluster_volume}")
     sh.gluster.volume("add-brick", gluster_volume, f"{hostname}:{brick_path}")
