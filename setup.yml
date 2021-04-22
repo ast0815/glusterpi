@@ -1,6 +1,6 @@
 ---
 
-- name: Install gluster server
+- name: Install gluster server and tools
   hosts: all
   become: True
   tasks:
@@ -22,22 +22,18 @@
         name:
           - python3-sh
         state: present
+    - name: Install scripts
+      copy:
+        src: autogluster.py
+        dest: /root/
+        mode: "0700"
 
-- name: Prime trusted pool 1/2
-  hosts: secondnode
+- name: Special setup for RaspberryPis
+  hosts: pis
   become: True
   tasks:
-    - name: Probe first node
-      gluster_peer:
-        state: present
-        nodes:
-          - "{{groups['firstnode'][0]}}"
-
-- name: Prime trusted pool 2/2
-  hosts: firstnode
-  become: True
-  tasks:
-    - name: Probe other nodes
-      gluster_peer:
-        state: present
-        nodes: "{{groups['all']}}"
+    - name: Add script to make sure glusterfs log dir exists
+      copy:
+        src: create-glusterd-logdir.conf
+        dest: /lib/systemd/system/glusterd.service.d/
+        mode: "0660"

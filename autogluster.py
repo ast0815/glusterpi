@@ -21,12 +21,16 @@ mounts = [mountpoint(device) for device in drives]
 # Get all previously mounted points
 mounted = glob("/mnt/usb/*")
 
-# Local hostname
-hostname = sh.hostname("-f").strip()
+# Get ro mounts
+ro = []
+for line in sh.mount(_iter=True):
+    for mount in mounted:
+        if mount in line and "ro" in line:
+            ro.append(mount)
 
 # Unmount all missing drives
 for mount in mounted:
-    if mount not in mounts:
+    if mount not in mounts or mount in ro:
         print(f"Unmounting {mount}")
         try:
             sh.umount(mount)
@@ -38,40 +42,17 @@ for mount in mounted:
         except Exception as e:
             pass
 
-# Get local brick mount points and remove those that are not present
-for volume in sh.gluster.volume.list():
-    volume = volume.strip()
-    for line in sh.gluster.volume.info(volume):
-        if "Brick" in line and "Bricks" not in line:
-            host, mount = line.split()[1].strip().split(":")
-            if host.lower() == hostname.lower():
-                if not path.exists(mount):
-                    print(f"Removing brick {host}:{mount} from {volume}")
-                    sh.gluster.volume(sh.yes(_piped=True), "remove-brick", volume, f"{host}:{mount}", "force")
-
-# Mount all drives
+# Mount all present drives
 for drive in drives:
     mount = mountpoint(drive)
     sh.mkdir("-p", mount)
     sh.chmod("go-w", mount)
     print(f"Mounting {drive} to {mount}")
     try:
-        sh.mount(drive, mount)
+        sh.mount("-o", "errors=continue", drive, mount)
     except Exception:
         pass
 
-# Check drives for ’autogluster’ file and add them to gluster
-for drive in drives:
-    mount = mountpoint(drive)
-    autogluster = path.join(mount, "autogluster")
-    if not path.exists(autogluster):
-        continue
-
-    with open(autogluster, "rt") as f:
-        gluster_volume, brick_path = f.readline().split()
-
-    brick_path = path.join(mount, brick_path).replace(":", "\:")
-    glusterfs = path.join(brick_path, ".glusterfs")
-
-    print(f"Adding {brick_path} to {gluster_volume}")
-    sh.gluster.volume("add-brick", gluster_volume, f"{hostname}:{brick_path}")
+# Restart the gluster processes
+print(f"Starting gluster bricks")
+sh.gluster.volume.start("gvol1", "force")
